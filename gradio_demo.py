@@ -140,7 +140,7 @@ def stage2_process(input_image, prompt, a_prompt, n_prompt, num_samples, upscale
         Image.fromarray(input_image).save(f'./history/{event_id[:5]}/{event_id[5:]}/LQ.png')
         for i, result in enumerate(results):
             Image.fromarray(result).save(f'./history/{event_id[:5]}/{event_id[5:]}/HQ_{i}.png')
-    return [input_image] + results, event_id, 3, ''
+    return [input_image] + results, [input_image] + results, event_id, 3, ''
 
 
 def load_and_reset(param_setting):
@@ -215,16 +215,18 @@ with block:
                 with gr.Column():
                     gr.Markdown("<center>Input</center>")
                     input_image = gr.Image(type="numpy", elem_id="image-input", height=400, width=400)
-                with gr.Column():
-                    gr.Markdown("<center>Stage1 Output</center>")
-                    denoise_image = gr.Image(type="numpy", elem_id="image-s1", height=400, width=400)
+                if use_llava:
+                    with gr.Column():
+                        gr.Markdown("<center>Stage1 Output</center>")
+                        denoise_image = gr.Image(type="numpy", elem_id="image-s1", height=400, width=400)
             prompt = gr.Textbox(label="Prompt", value="")
-            with gr.Accordion("Stage1 options", open=False):
-                gamma_correction = gr.Slider(label="Gamma Correction", minimum=0.1, maximum=2.0, value=1.0, step=0.1)
-            with gr.Accordion("LLaVA options", open=False):
-                temperature = gr.Slider(label="Temperature", minimum=0., maximum=1.0, value=0.2, step=0.1)
-                top_p = gr.Slider(label="Top P", minimum=0., maximum=1.0, value=0.7, step=0.1)
-                qs = gr.Textbox(label="Question", value="Describe this image and its style in a very detailed manner. "
+            if use_llava:
+                with gr.Accordion("Stage1 options", open=False):
+                    gamma_correction = gr.Slider(label="Gamma Correction", minimum=0.1, maximum=2.0, value=1.0, step=0.1)
+                with gr.Accordion("LLaVA options", open=False):
+                    temperature = gr.Slider(label="Temperature", minimum=0., maximum=1.0, value=0.2, step=0.1)
+                    top_p = gr.Slider(label="Top P", minimum=0., maximum=1.0, value=0.7, step=0.1)
+                    qs = gr.Textbox(label="Question", value="Describe this image and its style in a very detailed manner. "
                                                         "The image is a realistic photography, not an art painting.")
             with gr.Accordion("Stage2 options", open=False):
                 num_samples = gr.Slider(label="Num Samples", minimum=1, maximum=4 if not args.use_image_slider else 1
@@ -275,7 +277,10 @@ with block:
             if not args.use_image_slider:
                 result_gallery = gr.Gallery(label='Output', show_label=False, elem_id="gallery1")
             else:
-                result_gallery = ImageSlider(label='Output', show_label=False, elem_id="gallery1")
+                with gr.Row():
+                    result_gallery = ImageSlider(label='Output', show_label=False, elem_id="gallery1")
+                with gr.Row():
+                    result_gallery2 = gr.Gallery(label='Output', show_label=False, elem_id="gallery1")
             with gr.Row():
                 with gr.Column():
                     denoise_button = gr.Button(value="Stage1 Run")
@@ -298,13 +303,14 @@ with block:
         gr.Markdown(claim_md)
         event_id = gr.Textbox(label="Event ID", value="", visible=False)
 
-    llave_button.click(fn=llave_process, inputs=[denoise_image, temperature, top_p, qs], outputs=[prompt])
-    denoise_button.click(fn=stage1_process, inputs=[input_image, gamma_correction],
-                         outputs=[denoise_image])
-    stage2_ips = [input_image, prompt, a_prompt, n_prompt, num_samples, upscale, edm_steps, s_stage1, s_stage2,
-                  s_cfg, seed, s_churn, s_noise, color_fix_type, diff_dtype, ae_dtype, gamma_correction,
-                  linear_CFG, linear_s_stage2, spt_linear_CFG, spt_linear_s_stage2, model_select]
-    diffusion_button.click(fn=stage2_process, inputs=stage2_ips, outputs=[result_gallery, event_id, fb_score, fb_text])
+    if use_llava:
+        llave_button.click(fn=llave_process, inputs=[denoise_image, temperature, top_p, qs], outputs=[prompt])
+        denoise_button.click(fn=stage1_process, inputs=[input_image, gamma_correction],
+                            outputs=[denoise_image])
+        stage2_ips = [input_image, prompt, a_prompt, n_prompt, num_samples, upscale, edm_steps, s_stage1, s_stage2,
+                      s_cfg, seed, s_churn, s_noise, color_fix_type, diff_dtype, ae_dtype, gamma_correction,
+                      linear_CFG, linear_s_stage2, spt_linear_CFG, spt_linear_s_stage2, model_select]
+    diffusion_button.click(fn=stage2_process, inputs=stage2_ips, outputs=[result_gallery, result_gallery2, event_id, fb_score, fb_text])
     restart_button.click(fn=load_and_reset, inputs=[param_setting],
                          outputs=[edm_steps, s_cfg, s_stage2, s_stage1, s_churn, s_noise, a_prompt, n_prompt,
                                   color_fix_type, linear_CFG, linear_s_stage2, spt_linear_CFG, spt_linear_s_stage2])
