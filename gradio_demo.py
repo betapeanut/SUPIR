@@ -278,7 +278,7 @@ with block:
                 with gr.Row():
                     result_gallery = ImageSlider(label='Output', show_label=False, elem_id="gallery1")
                 with gr.Row():
-                    result_gallery2 = gr.Gallery(label='Output', show_label=False, elem_id="gallery1")
+                    result_gallery2 = gr.Gallery(label='Output', show_label=False, elem_id="gallery2")
             with gr.Row():
                 with gr.Column():
                     denoise_button = gr.Button(value="Stage1 Run")
